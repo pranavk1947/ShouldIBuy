@@ -30,5 +30,6 @@
     "typescript": "^5.5.3",
     "vitest": "^2.0.0",
     "@vitejs/plugin-react": "^4.3.1"
-  }
+  },
+  "packageManager": "pnpm@9.15.9"
 }
