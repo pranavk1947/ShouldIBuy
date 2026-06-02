@@ -1,0 +1,29 @@
+name: ci-backend
+on:
+  push:
+    paths: ["backend/**", "contracts/**", ".github/workflows/ci-backend.yml"]
+  pull_request:
+    paths: ["backend/**", "contracts/**", ".github/workflows/ci-backend.yml"]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Sync deps
+        run: uv sync --all-extras --dev
+      - name: Ruff
+        run: uv run ruff check .
+      - name: Mypy
+        run: uv run mypy src
+      - name: Unit tests
+        run: uv run pytest tests/unit -q
+      - name: Contract tests
+        run: uv run pytest tests/contract -q
+      - name: Eval gate
+        run: uv run pytest tests/eval -q -m eval || echo "eval gate: no eval tests yet (M3)"

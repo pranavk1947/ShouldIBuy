@@ -1,0 +1,28 @@
+name: check-types
+on:
+  pull_request:
+    paths: ["backend/**", "frontend/src/types/**", "contracts/**"]
+
+jobs:
+  types-fresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm, cache-dependency-path: frontend/pnpm-lock.yaml }
+      - run: cd backend && uv sync --all-extras --dev
+      - run: cd frontend && pnpm install --frozen-lockfile
+      - name: Regenerate types
+        run: |
+          cd backend && uv run python -m shouldibuy.tools.export_openapi ../contracts/openapi.json
+          cd ../frontend && pnpm exec openapi-typescript ../contracts/openapi.json -o src/types/api.d.ts
+      - name: Fail if types drifted
+        run: |
+          if ! git diff --quiet -- contracts/openapi.json frontend/src/types/api.d.ts; then
+            echo "::error::Generated types are stale. Run 'just gen-types' and commit."
+            git --no-pager diff -- contracts/openapi.json frontend/src/types/api.d.ts
+            exit 1
+          fi
