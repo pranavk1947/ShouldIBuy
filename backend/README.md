@@ -1,76 +1,74 @@
-# ShouldIBuy — Backend
+# ShouldIBuy API (DES architecture)
 
-A buyer-side "is this a fair price?" API. Submit a used-item listing URL and get
-a streamed analysis: extract → comps → condition → synthesize.
-
-This is **M0** (a walking skeleton) plus scaffolding for **M1** (a data-source
-adapter SDK + a real, tested valuation engine).
-
-## Stack
-
-- Python 3.12 target (runs on 3.10+), FastAPI, fully async, in-process.
-- Pydantic v2 + pydantic-settings.
-- SSE via a plain `StreamingResponse` reading from a per-analysis `asyncio.Queue`.
-- In-memory analysis store behind an `AnalysisStore` Protocol (Postgres swaps in for M1).
-- `Source` adapter SDK + an eBay Browse adapter skeleton with a golden fixture.
+Buyer-side "is this a fair price?" analysis API, refactored into the **DES
+(Dependency-injected, Explicit, Structured)** house style used across Loop Health
+services (see `loop-scribe`). Runtime behavior and the FE ⇄ BE SSE contract are
+preserved exactly; only the internal structure changed.
 
 ## Layout
 
 ```
 src/shouldibuy/
-  api/        FastAPI app, routes (POST/GET analyses, SSE), /healthz
-  core/       config, store (+ event bus), id generation
-  domain/     DTOs, SSE event union, enums (camelCase wire format)
-  pipeline/   orchestrator (M0 staged run) + valuation engine (pure, tested)
-  sources/    Source Protocol + eBay adapter + golden fixtures
-  tools/      export_openapi
+  app.py            FastAPI app + lifespan that builds the DI container,
+                    calls startup.build_*, overrides providers, mounts the
+                    controller, and stores app.state.
+  startup.py        build_source_chain(settings), build_analysis_repository(settings)
+                    — return concrete implementations.
+  container.py      dependency-injector DeclarativeContainer: Configuration +
+                    Dependency() providers (source_chain, analysis_repository)
+                    + Singleton AnalysisService wired from them.
+  config/           Dynaconf settings (get_settings) + properties/*.toml,
+                    env selected by APP_ENV (default local), envvar_prefix=APP.
+  controllers/      AnalysesController — a controller CLASS that registers its
+                    REST + SSE routes in _register_routes, plus /healthz.
+  service/          analysis_service.py (the staged M0 orchestrator) and
+                    valuation.py (pure, deterministic valuation functions).
+  integrations/
+    sources/        Source Protocol (provider.py), EbayBrowseSource (ebay.py),
+                    SourceFallbackChain (tenacity + pybreaker) + fixtures.
+  repository/       AnalysisRepository Protocol + InMemoryAnalysisRepository,
+                    which doubles as the per-analysis SSE event bus.
+  model/            Pydantic DTOs (dtos.py), SSE event union (events.py),
+                    internal Analysis dataclass (analysis.py).
+  utils/            structlog logging (logging/log_config.py) and a no-op
+                    `traced` tracing placeholder (observability/tracing.py).
+  tools/            export_openapi.py
 tests/
-  unit/       valuation tests (deterministic)
-  contract/   eBay adapter contract test (no network)
+  unit/             valuation, repository, DTO aliasing.
+  integration/      eBay adapter contract, end-to-end pipeline event sequence.
 ```
 
-## Run locally
+## DES conventions applied
+
+- **Protocol over ABC** for all interfaces (`Source`, `AnalysisRepository`),
+  `@runtime_checkable`. **Pydantic v2** at API/message boundaries; `@dataclass`
+  for internal domain objects (`Analysis`, `NormalizedListing`, `Comp`).
+- **Explicit DI** via `dependency-injector` wired in the app lifespan.
+- **Config** via Dynaconf (`get_settings()`), `APP_ENV` overlays, `APP_*` env.
+- **Logging** via structlog (`setup_logging()`); `structlog.get_logger(__name__)`.
+- **Resilience** via a `SourceFallbackChain` (tenacity retry +
+  per-source pybreaker circuit breaker) with `AllSourcesFailedError`.
+- **Controller pattern**: route classes with `_register_routes`.
+
+## Run
 
 ```bash
-# install (editable) — uv recommended
-uv pip install -e ".[dev]"     # or: pip install -e ".[dev]"
-
-# serve
-uvicorn shouldibuy.api.main:app --reload --port 8000
-
-# tests
-pytest -q
-
-# export the OpenAPI schema (FE codegen)
-python -m shouldibuy.tools.export_openapi openapi.json
+pip install -r requirements.txt
+PYTHONPATH=src python -m uvicorn shouldibuy.app:app --port 8000
+# or, after `pip install .`:
+shouldibuy
 ```
 
-## API contract
+## Test
 
-- `POST /api/analyses` body `{"url": str, "options": {"forceFresh": bool} | null}`,
-  optional `Idempotency-Key` header → `202 {"analysisId", "status": "queued"}`.
-  Re-using an idempotency key within the process returns the same id.
-- `GET /api/analyses/{id}` → snapshot
-  `{analysisId, status, listing?, marketVerdict?, condition?, verdict?, traceId}`.
-- `GET /api/analyses/{id}/events` → `text/event-stream`; each frame `data: <json>\n\n`.
-  Event `type`s: `progress | listing_parsed | market_verdict | condition | verdict | error | done`.
+```bash
+pip install -r requirements-dev.txt
+PYTHONPATH=src pytest                      # all
+PYTHONPATH=src pytest -m "not integration" # unit only
+```
 
-Statuses: `queued | extracting | comping | conditioning | synthesizing | done | degraded | failed`.
+## Roadmap markers
 
-### Invariant
-
-All monetary figures in `MarketVerdictDTO` / `VerdictDTO` come from the valuation
-engine (`pipeline/valuation.py`) — never from an LLM.
-
-## Deploy
-
-`Dockerfile` (python:3.12-slim + uv) and `fly.toml` (`shouldibuy-api`, always-on
-so SSE streams aren't cut by cold starts) are provided.
-
-## M1 TODOs
-
-Grep for `# TODO(M1)`:
-- Live eBay OAuth + Browse fetch (network path is stubbed, not called in tests).
-- Comps source (sold listings) feeding the valuation engine.
-- Postgres-backed `AnalysisStore` + Redis event bus.
-- Real condition stage (image analysis + claim parsing).
+- `TODO(M1)`: live eBay fetch/OAuth, comps from a real source, Postgres/Redis
+  repository, image-based condition analysis.
+- `TODO(M3)`: OpenTelemetry wiring behind the no-op `traced` decorator.

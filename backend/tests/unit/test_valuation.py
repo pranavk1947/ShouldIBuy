@@ -1,10 +1,10 @@
-"""Deterministic unit tests for the valuation engine."""
+"""Deterministic unit tests for the valuation engine (ported verbatim)."""
 
 from __future__ import annotations
 
 import pytest
 
-from shouldibuy.pipeline import valuation
+from shouldibuy.service import valuation
 
 
 def test_percentile_value_linear_interpolation() -> None:

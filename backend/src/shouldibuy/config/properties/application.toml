@@ -1,0 +1,30 @@
+[SERVER]
+PORT = 8000
+
+[CORS]
+ORIGINS = ["http://localhost:3000", "http://localhost:5173"]
+
+[PIPELINE]
+# M0 staged-pipeline delay between stages (seconds). Keep small for a visible reveal.
+STAGE_DELAY_SECONDS = 0.4
+
+[SOURCES.RETRY]
+MAX_ATTEMPTS = 3
+WAIT_MIN = 0.5
+WAIT_MAX = 4.0
+
+[SOURCES.CIRCUIT_BREAKER]
+FAIL_MAX = 5
+RESET_TIMEOUT = 30
+
+[EBAY]
+# TODO(M1): eBay OAuth credentials for the live Browse adapter.
+CLIENT_ID = ""
+CLIENT_SECRET = ""
+OAUTH_URL = "https://api.ebay.com/identity/v1/oauth2/token"
+BROWSE_BASE_URL = "https://api.ebay.com/buy/browse/v1"
+
+[OBSERVABILITY]
+# TODO(M3): wire OpenTelemetry exporters. No-op placeholder for now.
+ENABLED = false
+SERVICE_NAME = "shouldibuy-api"

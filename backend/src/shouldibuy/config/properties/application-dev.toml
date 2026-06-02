@@ -1,0 +1,6 @@
+[CORS]
+ORIGINS = ["https://dev.shouldibuy.app"]
+
+[OBSERVABILITY]
+ENABLED = true
+ENVIRONMENT = "dev"

@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pydantic>=2
+pydantic-settings
+dynaconf
+dependency-injector
+structlog
+tenacity
+pybreaker<2.0.0
+httpx
