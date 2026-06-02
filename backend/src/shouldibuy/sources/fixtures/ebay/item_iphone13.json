@@ -1,0 +1,48 @@
+{
+  "itemId": "v1|256123456789|0",
+  "legacyItemId": "256123456789",
+  "title": "Apple iPhone 13 128GB Midnight (Unlocked) - Good Condition",
+  "shortDescription": "Fully functional iPhone 13, minor scuffs on frame. Battery health 87%.",
+  "price": {
+    "value": "419.99",
+    "currency": "USD"
+  },
+  "categoryPath": "Cell Phones & Accessories|Cell Phones & Smartphones",
+  "categoryId": "9355",
+  "condition": "Used",
+  "conditionId": "3000",
+  "conditionDescription": "Good condition. Light scratches on the back glass and minor scuffs on the aluminum frame. Screen is flawless. Battery health 87%. No dents, no cracks. Fully tested and working.",
+  "itemWebUrl": "https://www.ebay.com/itm/256123456789",
+  "seller": {
+    "username": "trusted_reseller_92",
+    "feedbackPercentage": "99.3",
+    "feedbackScore": 4821
+  },
+  "itemLocation": {
+    "city": "Austin",
+    "stateOrProvince": "TX",
+    "country": "US",
+    "postalCode": "787**"
+  },
+  "image": {
+    "imageUrl": "https://i.ebayimg.com/images/g/abc/s-l1600.jpg"
+  },
+  "additionalImages": [
+    { "imageUrl": "https://i.ebayimg.com/images/g/def/s-l1600.jpg" },
+    { "imageUrl": "https://i.ebayimg.com/images/g/ghi/s-l1600.jpg" },
+    { "imageUrl": "https://i.ebayimg.com/images/g/jkl/s-l1600.jpg" }
+  ],
+  "brand": "Apple",
+  "mpn": "MLPF3LL/A",
+  "localizedAspects": [
+    { "type": "STRING", "name": "Brand", "value": "Apple" },
+    { "type": "STRING", "name": "Model", "value": "Apple iPhone 13" },
+    { "type": "STRING", "name": "Storage Capacity", "value": "128 GB" },
+    { "type": "STRING", "name": "Color", "value": "Midnight" },
+    { "type": "STRING", "name": "Network", "value": "Unlocked" },
+    { "type": "STRING", "name": "Lock Status", "value": "Factory Unlocked" }
+  ],
+  "estimatedAvailabilities": [
+    { "deliveryOptions": ["SHIP_TO_HOME"], "estimatedAvailableQuantity": 1 }
+  ]
+}
