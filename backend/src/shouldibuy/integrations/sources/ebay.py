@@ -16,7 +16,6 @@ import json
 import re
 from pathlib import Path
 from typing import Any
-from typing import Optional
 
 import httpx
 
@@ -34,7 +33,8 @@ _ITEM_ID_RE = re.compile(r"/itm/(?:[^/]+/)?(\d{6,})")
 def load_fixture(name: str) -> dict[str, Any]:
     """Load a golden eBay payload fixture by file name."""
     path = _FIXTURE_DIR / name
-    return json.loads(path.read_text(encoding="utf-8"))
+    data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return data
 
 
 class EbayBrowseSource:
@@ -57,14 +57,14 @@ class EbayBrowseSource:
         client_secret: str = "",
         oauth_url: str = "https://api.ebay.com/identity/v1/oauth2/token",
         browse_base_url: str = "https://api.ebay.com/buy/browse/v1",
-        client: Optional[httpx.AsyncClient] = None,
+        client: httpx.AsyncClient | None = None,
     ) -> None:
         self._client_id = client_id
         self._client_secret = client_secret
         self._oauth_url = oauth_url
         self._browse_base_url = browse_base_url
         self._client = client
-        self._token: Optional[str] = None
+        self._token: str | None = None
 
     # --------------------------------------------------------------------- #
     # URL handling
@@ -74,7 +74,7 @@ class EbayBrowseSource:
         return "ebay." in url and self.extract_item_id(url) is not None
 
     @staticmethod
-    def extract_item_id(url: str) -> Optional[str]:
+    def extract_item_id(url: str) -> str | None:
         """Extract the numeric legacy item id from an eBay listing URL."""
         match = _ITEM_ID_RE.search(url)
         return match.group(1) if match else None
@@ -196,7 +196,7 @@ class EbayBrowseSource:
         return images
 
     @staticmethod
-    def _location(item_location: Optional[dict[str, Any]]) -> Optional[str]:
+    def _location(item_location: dict[str, Any] | None) -> str | None:
         if not item_location:
             return None
         parts = [

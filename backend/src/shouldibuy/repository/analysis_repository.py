@@ -9,7 +9,6 @@ replay behavior are preserved exactly.
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 from typing import Protocol
 from typing import runtime_checkable
 
@@ -29,7 +28,7 @@ class AnalysisRepository(Protocol):
 
     async def create(self, analysis: Analysis) -> None: ...
 
-    async def get(self, analysis_id: str) -> Optional[Analysis]: ...
+    async def get(self, analysis_id: str) -> Analysis | None: ...
 
     async def update(self, analysis: Analysis) -> None: ...
 
@@ -50,7 +49,7 @@ class AnalysisRepository(Protocol):
     ) -> None: ...
 
     # Idempotency support (process-local for M0).
-    async def get_by_idempotency_key(self, key: str) -> Optional[str]: ...
+    async def get_by_idempotency_key(self, key: str) -> str | None: ...
 
     async def set_idempotency_key(self, key: str, analysis_id: str) -> None: ...
 
@@ -77,7 +76,7 @@ class InMemoryAnalysisRepository:
             self._subscribers.setdefault(analysis.analysis_id, [])
             self._history.setdefault(analysis.analysis_id, [])
 
-    async def get(self, analysis_id: str) -> Optional[Analysis]:
+    async def get(self, analysis_id: str) -> Analysis | None:
         async with self._lock:
             return self._items.get(analysis_id)
 
@@ -119,15 +118,13 @@ class InMemoryAnalysisRepository:
                 self._subscribers.setdefault(analysis_id, []).append(queue)
         return queue
 
-    async def unsubscribe(
-        self, analysis_id: str, queue: asyncio.Queue[object]
-    ) -> None:
+    async def unsubscribe(self, analysis_id: str, queue: asyncio.Queue[object]) -> None:
         async with self._lock:
             subs = self._subscribers.get(analysis_id)
             if subs is not None and queue in subs:
                 subs.remove(queue)
 
-    async def get_by_idempotency_key(self, key: str) -> Optional[str]:
+    async def get_by_idempotency_key(self, key: str) -> str | None:
         async with self._lock:
             return self._idempotency.get(key)
 

@@ -19,10 +19,10 @@ import structlog
 from shouldibuy.integrations.sources.fallback_chain import SourceFallbackChain
 from shouldibuy.integrations.sources.provider import RawPayload
 from shouldibuy.model.analysis import Analysis
-from shouldibuy.model.dtos import Confidence
 from shouldibuy.model.dtos import ConditionDTO
 from shouldibuy.model.dtos import ConditionFlag
 from shouldibuy.model.dtos import ConditionMismatch
+from shouldibuy.model.dtos import Confidence
 from shouldibuy.model.dtos import ListingAttributes
 from shouldibuy.model.dtos import ListingDTO
 from shouldibuy.model.dtos import Location
@@ -47,7 +47,17 @@ _ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789"
 # Hardcoded comparable prices for M0 so the valuation math is REAL.
 # TODO(M1): produce these from a comps source (eBay sold listings, etc.).
 _M0_COMP_PRICES: list[float] = [
-    349.0, 369.0, 379.0, 389.0, 399.0, 405.0, 410.0, 425.0, 430.0, 449.0, 469.0,
+    349.0,
+    369.0,
+    379.0,
+    389.0,
+    399.0,
+    405.0,
+    410.0,
+    425.0,
+    430.0,
+    449.0,
+    469.0,
 ]
 
 
@@ -131,9 +141,7 @@ class AnalysisService:
 
         analysis_id = new_analysis_id()
         trace_id = new_trace_id()
-        analysis = Analysis(
-            analysis_id=analysis_id, trace_id=trace_id, status="queued"
-        )
+        analysis = Analysis(analysis_id=analysis_id, trace_id=trace_id, status="queued")
         await self._repository.create(analysis)
 
         if idempotency_key:
@@ -215,9 +223,7 @@ class AnalysisService:
             analysis.status = "comping"
             await repo.update(analysis)
             await emit(
-                ProgressEvent(
-                    stage="comping", message="Comparing against the market…"
-                )
+                ProgressEvent(stage="comping", message="Comparing against the market…")
             )
             await asyncio.sleep(delay)
 

@@ -55,6 +55,7 @@ select = [
     "N",   # pep8-naming
 ]
 ignore = [
+    "UP042",
     "E501",  # line too long, handled by formatter
     "S101",  # Use of assert detected (OK in tests)
     "S104",  # Hardcoded bind to all interfaces (OK for server)

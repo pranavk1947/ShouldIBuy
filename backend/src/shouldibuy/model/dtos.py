@@ -11,7 +11,6 @@ These are byte-for-byte equivalent in field names/aliases to the original
 from __future__ import annotations
 
 from typing import Literal
-from typing import Optional
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -58,10 +57,10 @@ class Money(CamelModel):
 
 
 class ListingAttributes(CamelModel):
-    brand: Optional[str] = None
-    model: Optional[str] = None
-    storage: Optional[str] = None
-    condition_grade: Optional[str] = None
+    brand: str | None = None
+    model: str | None = None
+    storage: str | None = None
+    condition_grade: str | None = None
 
 
 class Location(CamelModel):
@@ -84,29 +83,29 @@ class ListingDTO(CamelModel):
     category: str
     attributes: ListingAttributes
     price: Money
-    condition_claim: Optional[str] = None
-    location: Optional[Location] = None
+    condition_claim: str | None = None
+    location: Location | None = None
     images: list[str] = Field(default_factory=list)
 
 
 class MarketVerdictDTO(CamelModel):
     state: MarketState
     asking: Money
-    percentile: Optional[int] = None
-    typical_range: Optional[TypicalRange] = None
+    percentile: int | None = None
+    typical_range: TypicalRange | None = None
     comp_count: int
 
 
 class ConditionFlag(CamelModel):
     kind: str
     detail: str
-    image_index: Optional[int] = None
+    image_index: int | None = None
 
 
 class ConditionMismatch(CamelModel):
     claim: str
     evidence: str
-    image_index: Optional[int] = None
+    image_index: int | None = None
 
 
 class ConditionDTO(CamelModel):
@@ -132,7 +131,7 @@ class AnalysisOptions(CamelModel):
 
 class CreateAnalysisRequest(CamelModel):
     url: str
-    options: Optional[AnalysisOptions] = None
+    options: AnalysisOptions | None = None
 
 
 class CreateAnalysisResponse(CamelModel):
@@ -143,8 +142,8 @@ class CreateAnalysisResponse(CamelModel):
 class AnalysisSnapshot(CamelModel):
     analysis_id: str
     status: AnalysisStatus
-    listing: Optional[ListingDTO] = None
-    market_verdict: Optional[MarketVerdictDTO] = None
-    condition: Optional[ConditionDTO] = None
-    verdict: Optional[VerdictDTO] = None
+    listing: ListingDTO | None = None
+    market_verdict: MarketVerdictDTO | None = None
+    condition: ConditionDTO | None = None
+    verdict: VerdictDTO | None = None
     trace_id: str

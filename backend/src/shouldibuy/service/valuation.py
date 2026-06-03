@@ -21,7 +21,7 @@ def _sorted_pairs(
         raise ValueError("values must be non-empty")
     if any(w < 0 for w in weights):
         raise ValueError("weights must be non-negative")
-    return sorted(zip(values, weights), key=lambda p: p[0])
+    return sorted(zip(values, weights, strict=True), key=lambda p: p[0])
 
 
 def weighted_median(values: Sequence[float], weights: Sequence[float]) -> float:

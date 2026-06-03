@@ -26,9 +26,7 @@ def _service() -> AnalysisService:
 
 async def test_full_event_sequence() -> None:
     service = _service()
-    analysis_id = await service.create_analysis(
-        "https://www.ebay.com/itm/256123456789"
-    )
+    analysis_id = await service.create_analysis("https://www.ebay.com/itm/256123456789")
 
     # Subscribe and run to completion: drain until STREAM_END.
     queue = await service.repository.subscribe(analysis_id)

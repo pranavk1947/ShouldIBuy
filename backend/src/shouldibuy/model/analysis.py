@@ -8,7 +8,6 @@ state of one analysis. The repository owns these; the controller converts to the
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from shouldibuy.model.dtos import AnalysisSnapshot
 from shouldibuy.model.dtos import AnalysisStatus
@@ -25,10 +24,10 @@ class Analysis:
     analysis_id: str
     trace_id: str
     status: AnalysisStatus = "queued"
-    listing: Optional[ListingDTO] = None
-    market_verdict: Optional[MarketVerdictDTO] = None
-    condition: Optional[ConditionDTO] = None
-    verdict: Optional[VerdictDTO] = None
+    listing: ListingDTO | None = None
+    market_verdict: MarketVerdictDTO | None = None
+    condition: ConditionDTO | None = None
+    verdict: VerdictDTO | None = None
 
     def to_snapshot(self) -> AnalysisSnapshot:
         return AnalysisSnapshot(

@@ -15,7 +15,6 @@ import enum
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
-from typing import Optional
 from typing import Protocol
 from typing import runtime_checkable
 
@@ -53,7 +52,7 @@ class Comp:
 
     price: float
     currency: str
-    title: Optional[str] = None
+    title: str | None = None
     sold: bool = False
     weight: float = 1.0
 
@@ -66,12 +65,12 @@ class NormalizedListing:
     category: str
     price_amount: float
     price_currency: str
-    brand: Optional[str] = None
-    model: Optional[str] = None
-    storage: Optional[str] = None
-    condition_grade: Optional[str] = None
-    condition_claim: Optional[str] = None
-    location_label: Optional[str] = None
+    brand: str | None = None
+    model: str | None = None
+    storage: str | None = None
+    condition_grade: str | None = None
+    condition_claim: str | None = None
+    location_label: str | None = None
     images: list[str] = field(default_factory=list)
     comps: list[Comp] = field(default_factory=list)
 

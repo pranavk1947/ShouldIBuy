@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from typing import Annotated
 from typing import Literal
-from typing import Union
 
 from pydantic import Field
 
@@ -57,14 +56,12 @@ class DoneEvent(CamelModel):
 
 
 SSEEvent = Annotated[
-    Union[
-        ProgressEvent,
-        ListingParsedEvent,
-        MarketVerdictEvent,
-        ConditionEvent,
-        VerdictEvent,
-        ErrorEvent,
-        DoneEvent,
-    ],
+    ProgressEvent
+    | ListingParsedEvent
+    | MarketVerdictEvent
+    | ConditionEvent
+    | VerdictEvent
+    | ErrorEvent
+    | DoneEvent,
     Field(discriminator="type"),
 ]

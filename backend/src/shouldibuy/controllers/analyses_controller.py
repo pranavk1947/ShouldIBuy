@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncIterator
 from typing import Annotated
-from typing import Optional
 
 import structlog
 from fastapi import APIRouter
@@ -83,9 +82,7 @@ class AnalysesController:
         self,
         body: CreateAnalysisRequest,
         response: Response,
-        idempotency_key: Annotated[
-            Optional[str], Header(alias="Idempotency-Key")
-        ] = None,
+        idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
     ) -> CreateAnalysisResponse:
         """Create an analysis and kick off the in-process pipeline (202)."""
         if not body.url.strip():
