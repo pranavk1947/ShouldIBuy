@@ -18,11 +18,33 @@ FAIL_MAX = 5
 RESET_TIMEOUT = 30
 
 [EBAY]
-# TODO(M1): eBay OAuth credentials for the live Browse adapter.
+# eBay OAuth credentials for the live Browse adapter. Empty by default so the
+# pipeline falls back to the bundled fixtures (offline/demo). Set via APP_EBAY__*
+# env vars or an env overlay to enable live network calls.
 CLIENT_ID = ""
 CLIENT_SECRET = ""
+# Default to PRODUCTION hosts; the sandbox URLs are provided for dev/test.
 OAUTH_URL = "https://api.ebay.com/identity/v1/oauth2/token"
 BROWSE_BASE_URL = "https://api.ebay.com/buy/browse/v1"
+MARKETPLACE_ID = "EBAY_US"
+# Reference hosts (selected per environment in the overlays below).
+OAUTH_URL_PRODUCTION = "https://api.ebay.com/identity/v1/oauth2/token"
+BROWSE_BASE_URL_PRODUCTION = "https://api.ebay.com/buy/browse/v1"
+OAUTH_URL_SANDBOX = "https://api.sandbox.ebay.com/identity/v1/oauth2/token"
+BROWSE_BASE_URL_SANDBOX = "https://api.sandbox.ebay.com/buy/browse/v1"
+
+[EBAY.SEARCH]
+# Comp-search defaults for item_summary/search.
+LIMIT = 12
+# Default condition filter (eBay conditionIds): the "used" family.
+CONDITION_IDS = [3000]
+# Comp cache TTL (seconds) used by the Redis repo, keyed by canonical query.
+COMP_CACHE_TTL_SECONDS = 3600
+
+[REDIS]
+# Empty by default -> in-memory repository. Set REDIS.URL (or top-level
+# REDIS_URL / APP_REDIS_URL) to use the Redis-backed repository.
+URL = ""
 
 [OBSERVABILITY]
 # TODO(M3): wire OpenTelemetry exporters. No-op placeholder for now.

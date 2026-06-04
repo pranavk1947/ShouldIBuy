@@ -17,6 +17,8 @@ import secrets
 import structlog
 
 from shouldibuy.integrations.sources.fallback_chain import SourceFallbackChain
+from shouldibuy.integrations.sources.provider import Comp
+from shouldibuy.integrations.sources.provider import NormalizedListing
 from shouldibuy.integrations.sources.provider import RawPayload
 from shouldibuy.model.analysis import Analysis
 from shouldibuy.model.dtos import ConditionDTO
@@ -39,26 +41,17 @@ from shouldibuy.model.events import ProgressEvent
 from shouldibuy.model.events import VerdictEvent
 from shouldibuy.repository.analysis_repository import AnalysisRepository
 from shouldibuy.service import valuation
+from shouldibuy.service.canonicalize import CanonicalQuery
+from shouldibuy.service.canonicalize import canonicalize
+from shouldibuy.service.canonicalize import matches_variant
 
 logger = structlog.get_logger(__name__)
 
 _ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789"
 
-# Hardcoded comparable prices for M0 so the valuation math is REAL.
-# TODO(M1): produce these from a comps source (eBay sold listings, etc.).
-_M0_COMP_PRICES: list[float] = [
-    349.0,
-    369.0,
-    379.0,
-    389.0,
-    399.0,
-    405.0,
-    410.0,
-    425.0,
-    430.0,
-    449.0,
-    469.0,
-]
+# Search fixture used as the offline/demo fallback when the eBay source has no
+# credentials configured (live-vs-fixture seam — see ``_gather_comps``).
+_SEARCH_FIXTURE = "search_iphone13.json"
 
 
 def _short_id(length: int = 12) -> str:
@@ -156,6 +149,77 @@ class AnalysisService:
     async def get_analysis(self, analysis_id: str) -> Analysis | None:
         return await self._repository.get(analysis_id)
 
+    async def _gather_comps(
+        self,
+        source: object,
+        canonical: CanonicalQuery,
+        subject: NormalizedListing,
+    ) -> list[Comp]:
+        """Resolve comparable listings for the subject (real comps).
+
+        Live-vs-fixture seam: when the eBay source has credentials we call its
+        ``search_comps`` (live Browse API); otherwise we parse the bundled search
+        fixture via the source's pure ``parse_search`` so the pipeline still runs
+        offline/in tests/demo. Results are de-duped, the subject listing is
+        removed, and obvious model-variant matches (e.g. "Pro"/"Pro Max") are
+        excluded. When the repository provides a comp cache it is consulted first
+        and populated after a live fetch.
+        """
+        repo = self._repository
+        cache_key = canonical.key.cache_key()
+
+        get_cached = getattr(repo, "get_cached_comps", None)
+        if get_cached is not None:
+            cached = await get_cached(cache_key)
+            if cached:
+                return self._filter_comps(cached, subject)
+
+        has_creds = bool(getattr(source, "has_credentials", False))
+        raw_comps: list[Comp]
+        if has_creds:
+            search_comps = source.search_comps  # type: ignore[attr-defined]
+            raw_comps = await search_comps(
+                canonical.query,
+                limit=None,
+                filters=canonical.filters,
+            )
+            set_cached = getattr(repo, "set_cached_comps", None)
+            if set_cached is not None and raw_comps:
+                await set_cached(cache_key, raw_comps)
+        else:
+            # Offline/demo path: parse the bundled search fixture.
+            from shouldibuy.integrations.sources.ebay import load_fixture
+            from shouldibuy.integrations.sources.ebay import parse_search
+
+            raw_comps = parse_search(load_fixture(_SEARCH_FIXTURE))
+
+        return self._filter_comps(raw_comps, subject, canonical=canonical)
+
+    @staticmethod
+    def _filter_comps(
+        comps: list[Comp],
+        subject: NormalizedListing,
+        canonical: CanonicalQuery | None = None,
+    ) -> list[Comp]:
+        """Drop the subject listing, exclude variants, and de-dup comps."""
+        exclude_terms = canonical.exclude_terms if canonical else []
+        subject_title = subject.title.strip().lower()
+        seen: set[tuple[float, str | None]] = set()
+        result: list[Comp] = []
+        for comp in comps:
+            title = (comp.title or "").strip()
+            # Self-exclusion: skip the subject listing by exact title match.
+            if title.lower() == subject_title:
+                continue
+            if matches_variant(title, exclude_terms):
+                continue
+            dedup_key = (comp.price, title.lower() or None)
+            if dedup_key in seen:
+                continue
+            seen.add(dedup_key)
+            result.append(comp)
+        return result
+
     async def run_analysis(self, analysis_id: str, url: str) -> None:
         """Run the M0 staged pipeline for one analysis.
 
@@ -227,7 +291,9 @@ class AnalysisService:
             )
             await asyncio.sleep(delay)
 
-            comps = _M0_COMP_PRICES
+            canonical = canonicalize(normalized)
+            comp_objs = await self._gather_comps(source, canonical, normalized)
+            comps = [c.price for c in comp_objs]
             asking = normalized.price_amount
             currency = normalized.price_currency
             pct = valuation.percentile_of(asking, comps)
@@ -255,7 +321,7 @@ class AnalysisService:
             )
             await asyncio.sleep(delay)
 
-            # Static for M0. TODO(M1): derive from image analysis + claim parsing.
+            # Static stub. TODO(M2): derive from image analysis + claim parsing.
             condition = ConditionDTO(
                 flags=[
                     ConditionFlag(

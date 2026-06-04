@@ -20,6 +20,7 @@ from shouldibuy import __version__
 from shouldibuy.config.settings import get_settings
 from shouldibuy.container import Container
 from shouldibuy.controllers.analyses_controller import AnalysesController
+from shouldibuy.repository.analysis_repository import RedisAnalysisRepository
 from shouldibuy.startup import build_analysis_repository
 from shouldibuy.startup import build_source_chain
 from shouldibuy.utils.logging.log_config import setup_logging
@@ -40,8 +41,15 @@ async def lifespan(app: FastAPI):
     app.state.container = container
 
     # --- Build resources ---
-    source_chain = build_source_chain(settings)
+    # Build the repository first so a Redis repo can double as the eBay
+    # TokenCache injected into the source chain.
     analysis_repository = build_analysis_repository(settings)
+    token_cache = (
+        analysis_repository
+        if isinstance(analysis_repository, RedisAnalysisRepository)
+        else None
+    )
+    source_chain = build_source_chain(settings, token_cache=token_cache)
 
     # --- Wire DI container ---
     container.source_chain.override(source_chain)

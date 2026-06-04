@@ -1,0 +1,116 @@
+{
+  "href": "https://api.ebay.com/buy/browse/v1/item_summary/search?q=Apple%20iPhone%2013%20128GB&limit=12",
+  "total": 1342,
+  "limit": 12,
+  "offset": 0,
+  "itemSummaries": [
+    {
+      "itemId": "v1|256123456789|0",
+      "legacyItemId": "256123456789",
+      "title": "Apple iPhone 13 128GB Midnight (Unlocked) - Good Condition",
+      "price": { "value": "419.99", "currency": "USD" },
+      "condition": "Used",
+      "conditionId": "3000",
+      "itemWebUrl": "https://www.ebay.com/itm/256123456789"
+    },
+    {
+      "itemId": "v1|256900000001|0",
+      "legacyItemId": "256900000001",
+      "title": "Apple iPhone 13 128GB Blue Unlocked - Very Good",
+      "price": { "value": "349.00", "currency": "USD" },
+      "condition": "Used",
+      "conditionId": "3000",
+      "itemWebUrl": "https://www.ebay.com/itm/256900000001"
+    },
+    {
+      "itemId": "v1|256900000002|0",
+      "legacyItemId": "256900000002",
+      "title": "Apple iPhone 13 128GB Starlight Unlocked",
+      "price": { "value": "369.00", "currency": "USD" },
+      "condition": "Used",
+      "conditionId": "3000",
+      "itemWebUrl": "https://www.ebay.com/itm/256900000002"
+    },
+    {
+      "itemId": "v1|256900000003|0",
+      "legacyItemId": "256900000003",
+      "title": "Apple iPhone 13 128GB Pink (Unlocked) Excellent",
+      "price": { "value": "379.00", "currency": "USD" },
+      "condition": "Used",
+      "conditionId": "3000",
+      "itemWebUrl": "https://www.ebay.com/itm/256900000003"
+    },
+    {
+      "itemId": "v1|256900000004|0",
+      "legacyItemId": "256900000004",
+      "title": "Apple iPhone 13 128GB Midnight GSM+CDMA Unlocked",
+      "price": { "value": "389.00", "currency": "USD" },
+      "condition": "Used",
+      "conditionId": "3000",
+      "itemWebUrl": "https://www.ebay.com/itm/256900000004"
+    },
+    {
+      "itemId": "v1|256900000005|0",
+      "legacyItemId": "256900000005",
+      "title": "Apple iPhone 13 128GB Green Unlocked Good",
+      "price": { "value": "399.00", "currency": "USD" },
+      "condition": "Used",
+      "conditionId": "3000",
+      "itemWebUrl": "https://www.ebay.com/itm/256900000005"
+    },
+    {
+      "itemId": "v1|256900000006|0",
+      "legacyItemId": "256900000006",
+      "title": "Apple iPhone 13 128GB Midnight Unlocked Clean IMEI",
+      "price": { "value": "405.00", "currency": "USD" },
+      "condition": "Used",
+      "conditionId": "3000",
+      "itemWebUrl": "https://www.ebay.com/itm/256900000006"
+    },
+    {
+      "itemId": "v1|256900000007|0",
+      "legacyItemId": "256900000007",
+      "title": "Apple iPhone 13 128GB Blue Unlocked Very Good Battery 90%",
+      "price": { "value": "410.00", "currency": "USD" },
+      "condition": "Used",
+      "conditionId": "3000",
+      "itemWebUrl": "https://www.ebay.com/itm/256900000007"
+    },
+    {
+      "itemId": "v1|256900000008|0",
+      "legacyItemId": "256900000008",
+      "title": "Apple iPhone 13 128GB Starlight Unlocked Excellent",
+      "price": { "value": "425.00", "currency": "USD" },
+      "condition": "Used",
+      "conditionId": "3000",
+      "itemWebUrl": "https://www.ebay.com/itm/256900000008"
+    },
+    {
+      "itemId": "v1|256900000009|0",
+      "legacyItemId": "256900000009",
+      "title": "Apple iPhone 13 128GB Midnight Unlocked - Mint",
+      "price": { "value": "430.00", "currency": "USD" },
+      "condition": "Used",
+      "conditionId": "3000",
+      "itemWebUrl": "https://www.ebay.com/itm/256900000009"
+    },
+    {
+      "itemId": "v1|256900000010|0",
+      "legacyItemId": "256900000010",
+      "title": "Apple iPhone 13 128GB Pink Unlocked Like New",
+      "price": { "value": "449.00", "currency": "USD" },
+      "condition": "Used",
+      "conditionId": "3000",
+      "itemWebUrl": "https://www.ebay.com/itm/256900000010"
+    },
+    {
+      "itemId": "v1|256900000011|0",
+      "legacyItemId": "256900000011",
+      "title": "Apple iPhone 13 128GB Green Unlocked Open Box",
+      "price": { "value": "469.00", "currency": "USD" },
+      "condition": "Open box",
+      "conditionId": "1500",
+      "itemWebUrl": "https://www.ebay.com/itm/256900000011"
+    }
+  ]
+}

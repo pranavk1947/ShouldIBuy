@@ -1,6 +1,14 @@
 [CORS]
 ORIGINS = ["https://dev.shouldibuy.app"]
 
+[EBAY]
+# Dev points at the eBay SANDBOX hosts.
+OAUTH_URL = "https://api.sandbox.ebay.com/identity/v1/oauth2/token"
+BROWSE_BASE_URL = "https://api.sandbox.ebay.com/buy/browse/v1"
+
+[REDIS]
+URL = "redis://localhost:6379/0"
+
 [OBSERVABILITY]
 ENABLED = true
 ENVIRONMENT = "dev"
