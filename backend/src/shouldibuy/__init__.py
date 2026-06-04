@@ -1,4 +1,4 @@
-"""ShouldIBuy — buyer-side fair-price analysis API."""
+"""ShouldIBuy — buyer-side fair-price analysis API (DES architecture)."""
 
 from __future__ import annotations
 

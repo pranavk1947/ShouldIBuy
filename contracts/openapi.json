@@ -1,0 +1,698 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ShouldIBuy API",
+    "description": "Buyer-side 'is this a fair price?' analysis API.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Healthz",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Healthz Healthz Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analyses": {
+      "post": {
+        "tags": [
+          "analyses"
+        ],
+        "summary": "Create Analysis",
+        "description": "Create an analysis and kick off the in-process pipeline (202).",
+        "operationId": "create_analysis_api_analyses_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAnalysisRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAnalysisResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analyses/{analysis_id}": {
+      "get": {
+        "tags": [
+          "analyses"
+        ],
+        "summary": "Get Analysis",
+        "description": "Return the current snapshot for an analysis (resume path).",
+        "operationId": "get_analysis_api_analyses__analysis_id__get",
+        "parameters": [
+          {
+            "name": "analysis_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Analysis Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analyses/{analysis_id}/events": {
+      "get": {
+        "tags": [
+          "sse"
+        ],
+        "summary": "Stream Events",
+        "description": "Stream analysis events as text/event-stream.\n\nLate subscribers replay buffered history first, then receive live events.",
+        "operationId": "stream_events_api_analyses__analysis_id__events_get",
+        "parameters": [
+          {
+            "name": "analysis_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Analysis Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalysisOptions": {
+        "properties": {
+          "forceFresh": {
+            "type": "boolean",
+            "title": "Forcefresh",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "AnalysisOptions"
+      },
+      "AnalysisSnapshot": {
+        "properties": {
+          "analysisId": {
+            "type": "string",
+            "title": "Analysisid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "extracting",
+              "comping",
+              "conditioning",
+              "synthesizing",
+              "done",
+              "degraded",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "listing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ListingDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "marketVerdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarketVerdictDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "condition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConditionDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerdictDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "traceId": {
+            "type": "string",
+            "title": "Traceid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "analysisId",
+          "status",
+          "traceId"
+        ],
+        "title": "AnalysisSnapshot"
+      },
+      "ConditionDTO": {
+        "properties": {
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/ConditionFlag"
+            },
+            "type": "array",
+            "title": "Flags"
+          },
+          "mismatches": {
+            "items": {
+              "$ref": "#/components/schemas/ConditionMismatch"
+            },
+            "type": "array",
+            "title": "Mismatches"
+          }
+        },
+        "type": "object",
+        "title": "ConditionDTO"
+      },
+      "ConditionFlag": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "imageIndex": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageindex"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "detail"
+        ],
+        "title": "ConditionFlag"
+      },
+      "ConditionMismatch": {
+        "properties": {
+          "claim": {
+            "type": "string",
+            "title": "Claim"
+          },
+          "evidence": {
+            "type": "string",
+            "title": "Evidence"
+          },
+          "imageIndex": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageindex"
+          }
+        },
+        "type": "object",
+        "required": [
+          "claim",
+          "evidence"
+        ],
+        "title": "ConditionMismatch"
+      },
+      "CreateAnalysisRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisOptions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "CreateAnalysisRequest"
+      },
+      "CreateAnalysisResponse": {
+        "properties": {
+          "analysisId": {
+            "type": "string",
+            "title": "Analysisid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "extracting",
+              "comping",
+              "conditioning",
+              "synthesizing",
+              "done",
+              "degraded",
+              "failed"
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "analysisId",
+          "status"
+        ],
+        "title": "CreateAnalysisResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ListingAttributes": {
+        "properties": {
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "storage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage"
+          },
+          "conditionGrade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conditiongrade"
+          }
+        },
+        "type": "object",
+        "title": "ListingAttributes"
+      },
+      "ListingDTO": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/ListingAttributes"
+          },
+          "price": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "conditionClaim": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conditionclaim"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Location"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Images"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "category",
+          "attributes",
+          "price"
+        ],
+        "title": "ListingDTO"
+      },
+      "Location": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "Location"
+      },
+      "MarketVerdictDTO": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "below",
+              "fair",
+              "above",
+              "well_above",
+              "unknown"
+            ],
+            "title": "State"
+          },
+          "asking": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "percentile": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentile"
+          },
+          "typicalRange": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TypicalRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "compCount": {
+            "type": "integer",
+            "title": "Compcount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "asking",
+          "compCount"
+        ],
+        "title": "MarketVerdictDTO"
+      },
+      "Money": {
+        "properties": {
+          "amount": {
+            "type": "number",
+            "title": "Amount"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "title": "Money"
+      },
+      "TypicalRange": {
+        "properties": {
+          "low": {
+            "type": "number",
+            "title": "Low"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "low",
+          "high",
+          "currency"
+        ],
+        "title": "TypicalRange"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VerdictDTO": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "below",
+              "fair",
+              "above",
+              "well_above",
+              "unknown"
+            ],
+            "title": "State"
+          },
+          "headline": {
+            "type": "string",
+            "title": "Headline"
+          },
+          "negotiationMessage": {
+            "type": "string",
+            "title": "Negotiationmessage"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low",
+              "none"
+            ],
+            "title": "Confidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "headline",
+          "negotiationMessage",
+          "confidence"
+        ],
+        "title": "VerdictDTO"
+      }
+    }
+  }
+}
