@@ -26,4 +26,4 @@ jobs:
       - name: Contract tests
         run: uv run pytest tests/contract -q
       - name: Eval gate
-        run: uv run pytest tests/eval -q -m eval || echo "eval gate: no eval tests yet (M3)"
+        run: uv run pytest -q -m eval
