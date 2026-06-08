@@ -20,6 +20,10 @@ from shouldibuy.integrations.sources.fallback_chain import SourceFallbackChain
 from shouldibuy.integrations.sources.provider import Comp
 from shouldibuy.integrations.sources.provider import NormalizedListing
 from shouldibuy.integrations.sources.provider import RawPayload
+from shouldibuy.llm.provider import DeterministicProvider
+from shouldibuy.llm.provider import LLMProvider
+from shouldibuy.llm.synthesis import VerdictContext
+from shouldibuy.llm.synthesis import write_negotiation_message
 from shouldibuy.model.analysis import Analysis
 from shouldibuy.model.dtos import ConditionDTO
 from shouldibuy.model.dtos import ConditionFlag
@@ -76,30 +80,6 @@ def _confidence_for(comp_count: int) -> Confidence:
     return "none"
 
 
-def _negotiation_message(
-    state: str, asking: float, currency: str, low: float, high: float
-) -> str:
-    """Templated, deterministic negotiation copy (NOT model-generated in M0)."""
-    sym = "$" if currency == "USD" else f"{currency} "
-    if state in ("above", "well_above"):
-        target = round((low + high) / 2.0)
-        return (
-            f"Comparable listings typically sell between {sym}{low:.0f} and "
-            f"{sym}{high:.0f}. The {sym}{asking:.0f} asking price is on the high "
-            f"side — consider offering around {sym}{target}."
-        )
-    if state == "below":
-        return (
-            f"At {sym}{asking:.0f} this is below the typical {sym}{low:.0f}-"
-            f"{sym}{high:.0f} range. If condition checks out, it's a strong buy."
-        )
-    return (
-        f"At {sym}{asking:.0f} this sits within the typical {sym}{low:.0f}-"
-        f"{sym}{high:.0f} range. The price is fair; a small offer near "
-        f"{sym}{low:.0f} is reasonable."
-    )
-
-
 class AnalysisService:
     """Creates analyses and runs the staged M0 pipeline."""
 
@@ -108,10 +88,14 @@ class AnalysisService:
         source_chain: SourceFallbackChain,
         repository: AnalysisRepository,
         stage_delay_seconds: float = 0.4,
+        llm_provider: LLMProvider | None = None,
     ) -> None:
         self._source_chain = source_chain
         self._repository = repository
         self._stage_delay = stage_delay_seconds
+        # Default to the offline deterministic provider so behavior with no
+        # LLM_API_KEY is identical to M0 (template-driven negotiation copy).
+        self._llm_provider: LLMProvider = llm_provider or DeterministicProvider()
         # Track background tasks so they aren't garbage-collected mid-flight.
         self._tasks: set[asyncio.Task[None]] = set()
 
@@ -359,12 +343,26 @@ class AnalysisService:
                 "unknown": "Not enough data for a confident verdict.",
             }[state]
 
+            # The LLM provider writes the *wording*; numbers come from the
+            # valuation engine and are guarded inside write_negotiation_message.
+            condition_flags = [
+                f"{flag.kind}: {flag.detail}" for flag in condition.flags
+            ]
+            negotiation_message = await write_negotiation_message(
+                self._llm_provider,
+                verdict_context=VerdictContext(
+                    state=state,
+                    asking=asking,
+                    low=low,
+                    high=high,
+                    currency=currency,
+                    condition_flags=condition_flags,
+                ),
+            )
             verdict = VerdictDTO(
                 state=state,
                 headline=headline,
-                negotiation_message=_negotiation_message(
-                    state, asking, currency, low, high
-                ),
+                negotiation_message=negotiation_message,
                 confidence=_confidence_for(len(comps)),
             )
             analysis.verdict = verdict

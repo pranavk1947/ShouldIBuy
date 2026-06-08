@@ -20,6 +20,7 @@ from shouldibuy import __version__
 from shouldibuy.config.settings import get_settings
 from shouldibuy.container import Container
 from shouldibuy.controllers.analyses_controller import AnalysesController
+from shouldibuy.llm.provider import build_llm_provider
 from shouldibuy.repository.analysis_repository import RedisAnalysisRepository
 from shouldibuy.startup import build_analysis_repository
 from shouldibuy.startup import build_source_chain
@@ -50,10 +51,12 @@ async def lifespan(app: FastAPI):
         else None
     )
     source_chain = build_source_chain(settings, token_cache=token_cache)
+    llm_provider = build_llm_provider(settings)
 
     # --- Wire DI container ---
     container.source_chain.override(source_chain)
     container.analysis_repository.override(analysis_repository)
+    container.llm_provider.override(llm_provider)
 
     # --- Build service + mount controller ---
     service = container.analysis_service()

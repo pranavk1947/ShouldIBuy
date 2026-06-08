@@ -18,6 +18,7 @@ from shouldibuy.app import app
 from shouldibuy.config.settings import get_settings
 from shouldibuy.container import Container
 from shouldibuy.controllers.analyses_controller import AnalysesController
+from shouldibuy.llm.provider import build_llm_provider
 from shouldibuy.startup import build_analysis_repository
 from shouldibuy.startup import build_source_chain
 
@@ -30,6 +31,7 @@ def _app_with_routes():
     )
     container.source_chain.override(build_source_chain(settings))
     container.analysis_repository.override(build_analysis_repository(settings))
+    container.llm_provider.override(build_llm_provider(settings))
     service = container.analysis_service()
     controller = AnalysesController(service)
     app.include_router(controller.router)
