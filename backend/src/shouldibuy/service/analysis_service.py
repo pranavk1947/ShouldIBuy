@@ -17,7 +17,13 @@ import secrets
 import structlog
 
 from shouldibuy.integrations.sources.fallback_chain import SourceFallbackChain
+from shouldibuy.integrations.sources.provider import Comp
+from shouldibuy.integrations.sources.provider import NormalizedListing
 from shouldibuy.integrations.sources.provider import RawPayload
+from shouldibuy.llm.provider import DeterministicProvider
+from shouldibuy.llm.provider import LLMProvider
+from shouldibuy.llm.synthesis import VerdictContext
+from shouldibuy.llm.synthesis import write_negotiation_message
 from shouldibuy.model.analysis import Analysis
 from shouldibuy.model.dtos import ConditionDTO
 from shouldibuy.model.dtos import ConditionFlag
@@ -39,26 +45,17 @@ from shouldibuy.model.events import ProgressEvent
 from shouldibuy.model.events import VerdictEvent
 from shouldibuy.repository.analysis_repository import AnalysisRepository
 from shouldibuy.service import valuation
+from shouldibuy.service.canonicalize import CanonicalQuery
+from shouldibuy.service.canonicalize import canonicalize
+from shouldibuy.service.canonicalize import matches_variant
 
 logger = structlog.get_logger(__name__)
 
 _ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789"
 
-# Hardcoded comparable prices for M0 so the valuation math is REAL.
-# TODO(M1): produce these from a comps source (eBay sold listings, etc.).
-_M0_COMP_PRICES: list[float] = [
-    349.0,
-    369.0,
-    379.0,
-    389.0,
-    399.0,
-    405.0,
-    410.0,
-    425.0,
-    430.0,
-    449.0,
-    469.0,
-]
+# Search fixture used as the offline/demo fallback when the eBay source has no
+# credentials configured (live-vs-fixture seam — see ``_gather_comps``).
+_SEARCH_FIXTURE = "search_iphone13.json"
 
 
 def _short_id(length: int = 12) -> str:
@@ -83,30 +80,6 @@ def _confidence_for(comp_count: int) -> Confidence:
     return "none"
 
 
-def _negotiation_message(
-    state: str, asking: float, currency: str, low: float, high: float
-) -> str:
-    """Templated, deterministic negotiation copy (NOT model-generated in M0)."""
-    sym = "$" if currency == "USD" else f"{currency} "
-    if state in ("above", "well_above"):
-        target = round((low + high) / 2.0)
-        return (
-            f"Comparable listings typically sell between {sym}{low:.0f} and "
-            f"{sym}{high:.0f}. The {sym}{asking:.0f} asking price is on the high "
-            f"side — consider offering around {sym}{target}."
-        )
-    if state == "below":
-        return (
-            f"At {sym}{asking:.0f} this is below the typical {sym}{low:.0f}-"
-            f"{sym}{high:.0f} range. If condition checks out, it's a strong buy."
-        )
-    return (
-        f"At {sym}{asking:.0f} this sits within the typical {sym}{low:.0f}-"
-        f"{sym}{high:.0f} range. The price is fair; a small offer near "
-        f"{sym}{low:.0f} is reasonable."
-    )
-
-
 class AnalysisService:
     """Creates analyses and runs the staged M0 pipeline."""
 
@@ -115,10 +88,14 @@ class AnalysisService:
         source_chain: SourceFallbackChain,
         repository: AnalysisRepository,
         stage_delay_seconds: float = 0.4,
+        llm_provider: LLMProvider | None = None,
     ) -> None:
         self._source_chain = source_chain
         self._repository = repository
         self._stage_delay = stage_delay_seconds
+        # Default to the offline deterministic provider so behavior with no
+        # LLM_API_KEY is identical to M0 (template-driven negotiation copy).
+        self._llm_provider: LLMProvider = llm_provider or DeterministicProvider()
         # Track background tasks so they aren't garbage-collected mid-flight.
         self._tasks: set[asyncio.Task[None]] = set()
 
@@ -155,6 +132,119 @@ class AnalysisService:
 
     async def get_analysis(self, analysis_id: str) -> Analysis | None:
         return await self._repository.get(analysis_id)
+
+    async def _gather_comps(
+        self,
+        source: object,
+        canonical: CanonicalQuery,
+        subject: NormalizedListing,
+    ) -> list[Comp]:
+        """Resolve comparable listings for the subject (real comps).
+
+        Comp-source fallback: every comps-capable source in the chain
+        (``Capability.COMPS``) is tried in order — the listing's own source
+        first, then the rest (e.g. SerpAPI/Google Shopping as the degraded
+        path). A source is only attempted live when it has credentials; if all
+        live attempts fail or none are configured, the bundled search fixture
+        keeps the pipeline running offline/in tests/demo. Results are de-duped,
+        the subject listing is removed, and obvious model-variant matches
+        (e.g. "Pro"/"Pro Max") are excluded. When the repository provides a
+        comp cache it is consulted first and populated after a live fetch.
+        """
+        repo = self._repository
+        cache_key = canonical.key.cache_key()
+
+        get_cached = getattr(repo, "get_cached_comps", None)
+        if get_cached is not None:
+            cached = await get_cached(cache_key)
+            if cached:
+                return self._filter_comps(cached, subject)
+
+        raw_comps: list[Comp] = []
+        for candidate in self._comp_sources(primary=source):
+            try:
+                search_comps = candidate.search_comps  # type: ignore[attr-defined]
+                raw_comps = await search_comps(
+                    canonical.query,
+                    limit=None,
+                    filters=canonical.filters,
+                )
+            except Exception as exc:  # noqa: BLE001 — degrade to the next source.
+                logger.warning(
+                    "Comp source failed, falling back",
+                    source=getattr(candidate, "name", "unknown"),
+                    error=str(exc),
+                )
+                continue
+            if raw_comps:
+                logger.info(
+                    "Comps gathered",
+                    source=getattr(candidate, "name", "unknown"),
+                    count=len(raw_comps),
+                )
+                set_cached = getattr(repo, "set_cached_comps", None)
+                if set_cached is not None:
+                    await set_cached(cache_key, raw_comps)
+                break
+
+        if not raw_comps:
+            # Offline/demo path: parse the bundled search fixture.
+            from shouldibuy.integrations.sources.ebay import load_fixture
+            from shouldibuy.integrations.sources.ebay import parse_search
+
+            raw_comps = parse_search(load_fixture(_SEARCH_FIXTURE))
+
+        return self._filter_comps(raw_comps, subject, canonical=canonical)
+
+    def _comp_sources(self, primary: object) -> list[object]:
+        """Comps-capable, credentialed sources in fallback order.
+
+        The listing's own source goes first (its comps are same-marketplace and
+        condition-filtered), then any other ``Capability.COMPS`` source in chain
+        order. Sources without credentials are skipped — they cannot make live
+        calls, and the fixture fallback below covers the offline path.
+        """
+        from shouldibuy.integrations.sources.provider import Capability
+
+        ordered: list[object] = []
+        if getattr(primary, "has_credentials", False) and Capability.COMPS in getattr(
+            primary, "capabilities", frozenset()
+        ):
+            ordered.append(primary)
+        for candidate in self._source_chain.sources:
+            if candidate is primary:
+                continue
+            if Capability.COMPS not in getattr(candidate, "capabilities", frozenset()):
+                continue
+            if not getattr(candidate, "has_credentials", False):
+                continue
+            ordered.append(candidate)
+        return ordered
+
+    @staticmethod
+    def _filter_comps(
+        comps: list[Comp],
+        subject: NormalizedListing,
+        canonical: CanonicalQuery | None = None,
+    ) -> list[Comp]:
+        """Drop the subject listing, exclude variants, and de-dup comps."""
+        exclude_terms = canonical.exclude_terms if canonical else []
+        subject_title = subject.title.strip().lower()
+        seen: set[tuple[float, str | None]] = set()
+        result: list[Comp] = []
+        for comp in comps:
+            title = (comp.title or "").strip()
+            # Self-exclusion: skip the subject listing by exact title match.
+            if title.lower() == subject_title:
+                continue
+            if matches_variant(title, exclude_terms):
+                continue
+            dedup_key = (comp.price, title.lower() or None)
+            if dedup_key in seen:
+                continue
+            seen.add(dedup_key)
+            result.append(comp)
+        return result
 
     async def run_analysis(self, analysis_id: str, url: str) -> None:
         """Run the M0 staged pipeline for one analysis.
@@ -227,7 +317,9 @@ class AnalysisService:
             )
             await asyncio.sleep(delay)
 
-            comps = _M0_COMP_PRICES
+            canonical = canonicalize(normalized)
+            comp_objs = await self._gather_comps(source, canonical, normalized)
+            comps = [c.price for c in comp_objs]
             asking = normalized.price_amount
             currency = normalized.price_currency
             pct = valuation.percentile_of(asking, comps)
@@ -255,7 +347,7 @@ class AnalysisService:
             )
             await asyncio.sleep(delay)
 
-            # Static for M0. TODO(M1): derive from image analysis + claim parsing.
+            # Static stub. TODO(M2): derive from image analysis + claim parsing.
             condition = ConditionDTO(
                 flags=[
                     ConditionFlag(
@@ -293,12 +385,26 @@ class AnalysisService:
                 "unknown": "Not enough data for a confident verdict.",
             }[state]
 
+            # The LLM provider writes the *wording*; numbers come from the
+            # valuation engine and are guarded inside write_negotiation_message.
+            condition_flags = [
+                f"{flag.kind}: {flag.detail}" for flag in condition.flags
+            ]
+            negotiation_message = await write_negotiation_message(
+                self._llm_provider,
+                verdict_context=VerdictContext(
+                    state=state,
+                    asking=asking,
+                    low=low,
+                    high=high,
+                    currency=currency,
+                    condition_flags=condition_flags,
+                ),
+            )
             verdict = VerdictDTO(
                 state=state,
                 headline=headline,
-                negotiation_message=_negotiation_message(
-                    state, asking, currency, low, high
-                ),
+                negotiation_message=negotiation_message,
                 confidence=_confidence_for(len(comps)),
             )
             analysis.verdict = verdict

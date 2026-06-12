@@ -8,3 +8,5 @@ structlog
 tenacity
 pybreaker<2.0.0
 httpx
+redis
+langsmith

@@ -92,6 +92,7 @@ addopts = "-v"
 asyncio_mode = "auto"
 markers = [
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "eval: marks synthesis eval-gate tests (hermetic; deselect with '-m \"not eval\"')",
 ]
 
 [tool.coverage.run]

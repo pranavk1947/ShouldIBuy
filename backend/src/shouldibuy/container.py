@@ -25,6 +25,7 @@ class Container(containers.DeclarativeContainer):
     # Runtime dependencies — overridden during app startup.
     source_chain: providers.Dependency[Any] = providers.Dependency()
     analysis_repository: providers.Dependency[Any] = providers.Dependency()
+    llm_provider: providers.Dependency[Any] = providers.Dependency()
 
     # Analysis service — uses the providers above.
     analysis_service = providers.Singleton(
@@ -32,4 +33,5 @@ class Container(containers.DeclarativeContainer):
         source_chain=source_chain,
         repository=analysis_repository,
         stage_delay_seconds=config.PIPELINE.STAGE_DELAY_SECONDS,
+        llm_provider=llm_provider,
     )

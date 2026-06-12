@@ -10,7 +10,9 @@ import pytest
 
 from shouldibuy.integrations.sources.ebay import EbayBrowseSource
 from shouldibuy.integrations.sources.ebay import load_fixture
+from shouldibuy.integrations.sources.ebay import parse_search
 from shouldibuy.integrations.sources.provider import Capability
+from shouldibuy.integrations.sources.provider import Comp
 from shouldibuy.integrations.sources.provider import NormalizedListing
 from shouldibuy.integrations.sources.provider import RawPayload
 from shouldibuy.integrations.sources.provider import SourceStatus
@@ -73,6 +75,48 @@ def test_parse_fixture_produces_expected_listing() -> None:
     assert listing.images[0].startswith("https://")
     # M0 adapter does not yet emit comps.
     assert listing.comps == []
+
+
+def test_parse_search_contract() -> None:
+    """parse_search maps the search fixture to Comp objects (pure)."""
+    comps = parse_search(load_fixture("search_iphone13.json"))
+
+    # The fixture has 12 itemSummaries, all with usable prices.
+    assert len(comps) == 12
+    assert all(isinstance(c, Comp) for c in comps)
+    assert all(c.currency == "USD" for c in comps)
+    assert all(c.price > 0 for c in comps)
+
+    # Prices are parsed from strings into floats.
+    prices = sorted(c.price for c in comps)
+    assert prices[0] == 349.0
+    assert prices[-1] == 469.0
+    # The subject listing's price is present (pipeline owns self-exclusion).
+    assert 419.99 in {c.price for c in comps}
+
+
+def test_parse_search_no_pro_variants_in_fixture() -> None:
+    """The pure-13 fixture must not contain any Pro/Pro Max titles."""
+    comps = parse_search(load_fixture("search_iphone13.json"))
+    titles = " ".join((c.title or "") for c in comps).lower()
+    assert "pro" not in titles
+    assert "plus" not in titles
+
+
+def test_parse_search_skips_items_without_price() -> None:
+    """Items missing a usable price are skipped."""
+    payload = {
+        "itemSummaries": [
+            {"title": "No price"},
+            {"title": "Zero", "price": {"value": "0", "currency": "USD"}},
+            {"title": "Bad", "price": {"value": "abc", "currency": "USD"}},
+            {"title": "Good", "price": {"value": "100.00", "currency": "USD"}},
+        ]
+    }
+    comps = parse_search(payload)
+    assert len(comps) == 1
+    assert comps[0].price == 100.0
+    assert comps[0].title == "Good"
 
 
 def test_parse_is_pure_no_network(monkeypatch) -> None:

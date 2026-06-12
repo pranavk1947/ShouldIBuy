@@ -1,6 +1,15 @@
 [CORS]
 ORIGINS = ["https://shouldibuy.app"]
 
+[EBAY]
+# Prod uses the eBay PRODUCTION hosts (same as the base defaults).
+OAUTH_URL = "https://api.ebay.com/identity/v1/oauth2/token"
+BROWSE_BASE_URL = "https://api.ebay.com/buy/browse/v1"
+
+[REDIS]
+# Set REDIS.URL via env (APP_REDIS__URL) or platform secret in prod.
+URL = ""
+
 [OBSERVABILITY]
 ENABLED = true
 ENVIRONMENT = "prod"
