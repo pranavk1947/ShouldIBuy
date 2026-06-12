@@ -45,6 +45,7 @@ def _mock_source() -> MagicMock:
 
     source = MagicMock()
     source.name = "ebay"
+    source.capabilities = EbayBrowseSource.capabilities
     source.has_credentials = True
     source.can_handle.return_value = True
     # parse is pure/sync — delegate to the real adapter.
@@ -159,3 +160,79 @@ async def test_idempotency_returns_same_id() -> None:
     a1 = await service.create_analysis("https://www.ebay.com/itm/1", "key-1")
     a2 = await service.create_analysis("https://www.ebay.com/itm/1", "key-1")
     assert a1 == a2
+
+
+def _mock_serpapi_source() -> MagicMock:
+    """A mock comps-only fallback source (SerpAPI-shaped)."""
+    from shouldibuy.integrations.sources import serpapi as serpapi_module
+    from shouldibuy.integrations.sources.serpapi import SerpApiSource
+
+    comps = serpapi_module.parse_search(
+        serpapi_module.load_fixture("search_iphone13.json")
+    )
+    source = MagicMock()
+    source.name = "serpapi"
+    source.capabilities = SerpApiSource.capabilities
+    source.has_credentials = True
+    source.can_handle.return_value = False
+    source.search_comps = AsyncMock(return_value=comps)
+    return source
+
+
+async def test_comp_fallback_uses_secondary_source_when_primary_fails() -> None:
+    """Primary comps fail -> the comps-only fallback source supplies them.
+
+    The eBay source raises on ``search_comps`` (e.g. Browse API outage); the
+    pipeline must degrade to the SerpAPI-shaped source and still produce a
+    market verdict from REAL fallback comps — not the bundled fixture.
+    """
+    primary = _mock_source()
+    primary.search_comps = AsyncMock(side_effect=RuntimeError("browse api down"))
+    fallback = _mock_serpapi_source()
+
+    chain = SourceFallbackChain(sources=[primary, fallback])
+    repo = InMemoryAnalysisRepository()
+    service = AnalysisService(
+        source_chain=chain, repository=repo, stage_delay_seconds=0.0
+    )
+
+    analysis_id = await service.create_analysis(_SUBJECT_URL)
+    events = await _drain(service, analysis_id)
+
+    primary.search_comps.assert_awaited_once()
+    fallback.search_comps.assert_awaited_once()
+
+    mv = next(e for e in events if e["type"] == "market_verdict")["marketVerdict"]
+    # 11 priced fixture results; the Pro / Mini variants and the case are
+    # excluded by the variant filter -> fewer comps than the eBay fixture path.
+    assert mv["compCount"] > 0
+    assert mv["asking"]["amount"] == 419.99
+
+
+async def test_comp_fallback_skips_uncredentialed_sources() -> None:
+    """Sources without credentials are never attempted live.
+
+    With no credentialed comp source at all, the pipeline falls back to the
+    bundled eBay search fixture (the offline/demo seam) and still completes.
+    """
+    primary = _mock_source()
+    primary.has_credentials = False
+    fallback = _mock_serpapi_source()
+    fallback.has_credentials = False
+
+    chain = SourceFallbackChain(sources=[primary, fallback])
+    repo = InMemoryAnalysisRepository()
+    service = AnalysisService(
+        source_chain=chain, repository=repo, stage_delay_seconds=0.0
+    )
+
+    analysis_id = await service.create_analysis(_SUBJECT_URL)
+    events = await _drain(service, analysis_id)
+
+    primary.search_comps.assert_not_awaited()
+    fallback.search_comps.assert_not_awaited()
+
+    types = [e["type"] for e in events]
+    assert types[-1] == "done"
+    mv = next(e for e in events if e["type"] == "market_verdict")["marketVerdict"]
+    assert mv["compCount"] == 11  # bundled fixture path

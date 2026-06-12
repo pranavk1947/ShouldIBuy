@@ -1,0 +1,110 @@
+{
+  "search_metadata": {
+    "id": "golden_fixture_serpapi_iphone13",
+    "status": "Success",
+    "created_at": "2026-06-08 12:00:00 UTC",
+    "google_shopping_url": "https://www.google.com/search?tbm=shop&q=Apple+iPhone+13+128GB"
+  },
+  "search_parameters": {
+    "engine": "google_shopping",
+    "q": "Apple iPhone 13 128GB",
+    "gl": "us",
+    "num": "12"
+  },
+  "shopping_results": [
+    {
+      "position": 1,
+      "title": "Apple iPhone 13 128GB Midnight Unlocked - Very Good",
+      "price": "$405.00",
+      "extracted_price": 405.0,
+      "source": "Back Market",
+      "link": "https://www.backmarket.com/en-us/p/iphone-13-128"
+    },
+    {
+      "position": 2,
+      "title": "Apple iPhone 13 128GB (Unlocked) Blue - Refurbished",
+      "price": "$389.99",
+      "extracted_price": 389.99,
+      "source": "Walmart",
+      "link": "https://www.walmart.com/ip/iphone-13-refurb"
+    },
+    {
+      "position": 3,
+      "title": "iPhone 13 128GB Starlight - Excellent Condition",
+      "price": "$419.00",
+      "extracted_price": 419.0,
+      "source": "Swappa",
+      "link": "https://swappa.com/listing/iphone13-128"
+    },
+    {
+      "position": 4,
+      "title": "Apple iPhone 13 Pro 256GB Graphite Unlocked",
+      "price": "$545.00",
+      "extracted_price": 545.0,
+      "source": "Gazelle",
+      "link": "https://www.gazelle.com/iphone-13-pro"
+    },
+    {
+      "position": 5,
+      "title": "Apple iPhone 13 128GB Midnight - Good",
+      "price": "$396.50",
+      "extracted_price": 396.5,
+      "source": "Reebelo",
+      "link": "https://reebelo.com/iphone-13-128"
+    },
+    {
+      "position": 6,
+      "title": "iPhone 13 128GB Unlocked Smartphone - Fair Condition",
+      "price": "$372.00",
+      "extracted_price": 372.0,
+      "source": "Plug Tech",
+      "link": "https://plug.tech/iphone-13"
+    },
+    {
+      "position": 7,
+      "title": "Case for Apple iPhone 13 - Clear Shockproof Cover",
+      "price": "$12.99",
+      "extracted_price": 12.99,
+      "source": "Amazon",
+      "link": "https://www.amazon.com/iphone-13-case"
+    },
+    {
+      "position": 8,
+      "title": "Apple iPhone 13 128GB Pink Unlocked - Very Good",
+      "price": "$412.00",
+      "extracted_price": 412.0,
+      "source": "Back Market",
+      "link": "https://www.backmarket.com/en-us/p/iphone-13-pink"
+    },
+    {
+      "position": 9,
+      "title": "Apple iPhone 13 Mini 128GB Midnight Unlocked",
+      "price": "$355.00",
+      "extracted_price": 355.0,
+      "source": "Swappa",
+      "link": "https://swappa.com/listing/iphone13mini"
+    },
+    {
+      "position": 10,
+      "title": "Apple iPhone 13 128GB Green (AT&T) - Refurbished",
+      "price": "$401.25",
+      "extracted_price": 401.25,
+      "source": "Walmart",
+      "link": "https://www.walmart.com/ip/iphone-13-green"
+    },
+    {
+      "position": 11,
+      "title": "Apple iPhone 13 128GB - Price on request",
+      "source": "ObscureShop",
+      "link": "https://example-shop.test/iphone-13"
+    },
+    {
+      "position": 12,
+      "title": "Apple iPhone 13 128GB Red Unlocked - Good Condition",
+      "price": "$408.00",
+      "extracted_price": 408.0,
+      "source": "Reebelo",
+      "link": "https://reebelo.com/iphone-13-red"
+    }
+  ]
+}

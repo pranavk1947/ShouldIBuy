@@ -141,13 +141,15 @@ class AnalysisService:
     ) -> list[Comp]:
         """Resolve comparable listings for the subject (real comps).
 
-        Live-vs-fixture seam: when the eBay source has credentials we call its
-        ``search_comps`` (live Browse API); otherwise we parse the bundled search
-        fixture via the source's pure ``parse_search`` so the pipeline still runs
-        offline/in tests/demo. Results are de-duped, the subject listing is
-        removed, and obvious model-variant matches (e.g. "Pro"/"Pro Max") are
-        excluded. When the repository provides a comp cache it is consulted first
-        and populated after a live fetch.
+        Comp-source fallback: every comps-capable source in the chain
+        (``Capability.COMPS``) is tried in order — the listing's own source
+        first, then the rest (e.g. SerpAPI/Google Shopping as the degraded
+        path). A source is only attempted live when it has credentials; if all
+        live attempts fail or none are configured, the bundled search fixture
+        keeps the pipeline running offline/in tests/demo. Results are de-duped,
+        the subject listing is removed, and obvious model-variant matches
+        (e.g. "Pro"/"Pro Max") are excluded. When the repository provides a
+        comp cache it is consulted first and populated after a live fetch.
         """
         repo = self._repository
         cache_key = canonical.key.cache_key()
@@ -158,19 +160,34 @@ class AnalysisService:
             if cached:
                 return self._filter_comps(cached, subject)
 
-        has_creds = bool(getattr(source, "has_credentials", False))
-        raw_comps: list[Comp]
-        if has_creds:
-            search_comps = source.search_comps  # type: ignore[attr-defined]
-            raw_comps = await search_comps(
-                canonical.query,
-                limit=None,
-                filters=canonical.filters,
-            )
-            set_cached = getattr(repo, "set_cached_comps", None)
-            if set_cached is not None and raw_comps:
-                await set_cached(cache_key, raw_comps)
-        else:
+        raw_comps: list[Comp] = []
+        for candidate in self._comp_sources(primary=source):
+            try:
+                search_comps = candidate.search_comps  # type: ignore[attr-defined]
+                raw_comps = await search_comps(
+                    canonical.query,
+                    limit=None,
+                    filters=canonical.filters,
+                )
+            except Exception as exc:  # noqa: BLE001 — degrade to the next source.
+                logger.warning(
+                    "Comp source failed, falling back",
+                    source=getattr(candidate, "name", "unknown"),
+                    error=str(exc),
+                )
+                continue
+            if raw_comps:
+                logger.info(
+                    "Comps gathered",
+                    source=getattr(candidate, "name", "unknown"),
+                    count=len(raw_comps),
+                )
+                set_cached = getattr(repo, "set_cached_comps", None)
+                if set_cached is not None:
+                    await set_cached(cache_key, raw_comps)
+                break
+
+        if not raw_comps:
             # Offline/demo path: parse the bundled search fixture.
             from shouldibuy.integrations.sources.ebay import load_fixture
             from shouldibuy.integrations.sources.ebay import parse_search
@@ -178,6 +195,31 @@ class AnalysisService:
             raw_comps = parse_search(load_fixture(_SEARCH_FIXTURE))
 
         return self._filter_comps(raw_comps, subject, canonical=canonical)
+
+    def _comp_sources(self, primary: object) -> list[object]:
+        """Comps-capable, credentialed sources in fallback order.
+
+        The listing's own source goes first (its comps are same-marketplace and
+        condition-filtered), then any other ``Capability.COMPS`` source in chain
+        order. Sources without credentials are skipped — they cannot make live
+        calls, and the fixture fallback below covers the offline path.
+        """
+        from shouldibuy.integrations.sources.provider import Capability
+
+        ordered: list[object] = []
+        if getattr(primary, "has_credentials", False) and Capability.COMPS in getattr(
+            primary, "capabilities", frozenset()
+        ):
+            ordered.append(primary)
+        for candidate in self._source_chain.sources:
+            if candidate is primary:
+                continue
+            if Capability.COMPS not in getattr(candidate, "capabilities", frozenset()):
+                continue
+            if not getattr(candidate, "has_credentials", False):
+                continue
+            ordered.append(candidate)
+        return ordered
 
     @staticmethod
     def _filter_comps(

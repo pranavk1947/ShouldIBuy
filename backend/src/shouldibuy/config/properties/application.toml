@@ -33,6 +33,16 @@ BROWSE_BASE_URL_PRODUCTION = "https://api.ebay.com/buy/browse/v1"
 OAUTH_URL_SANDBOX = "https://api.sandbox.ebay.com/identity/v1/oauth2/token"
 BROWSE_BASE_URL_SANDBOX = "https://api.sandbox.ebay.com/buy/browse/v1"
 
+[SERPAPI]
+# SerpAPI (Google Shopping) — comps-only fallback source behind the same
+# ``Source`` SDK. Empty key by default so the comp gatherer skips it
+# (offline/demo). Set via APP_SERPAPI__API_KEY to enable live fallback comps.
+API_KEY = ""
+BASE_URL = "https://serpapi.com/search.json"
+ENGINE = "google_shopping"
+GL = "us"
+LIMIT = 12
+
 [EBAY.SEARCH]
 # Comp-search defaults for item_summary/search.
 LIMIT = 12

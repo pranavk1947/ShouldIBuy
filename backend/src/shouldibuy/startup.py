@@ -14,6 +14,7 @@ from shouldibuy.integrations.sources.ebay import EbayBrowseSource
 from shouldibuy.integrations.sources.ebay import TokenCache
 from shouldibuy.integrations.sources.fallback_chain import SourceFallbackChain
 from shouldibuy.integrations.sources.provider import Source
+from shouldibuy.integrations.sources.serpapi import SerpApiSource
 from shouldibuy.repository.analysis_repository import AnalysisRepository
 from shouldibuy.repository.analysis_repository import InMemoryAnalysisRepository
 from shouldibuy.repository.analysis_repository import RedisAnalysisRepository
@@ -58,6 +59,31 @@ def build_source_chain(
         token_cache=token_cache if has_creds else None,
     )
     sources: list[Source] = [source]
+
+    # SerpAPI (Google Shopping) — comps-only fallback source. Always present in
+    # the chain so its capability flags are visible to the orchestrator; live
+    # calls require an API key (otherwise the comp gatherer skips it).
+    serpapi_section = getattr(settings, "SERPAPI", None)
+    serpapi_source = SerpApiSource(
+        api_key=str(getattr(serpapi_section, "API_KEY", "") or "")
+        if serpapi_section
+        else "",
+        base_url=(
+            getattr(serpapi_section, "BASE_URL", "https://serpapi.com/search.json")
+            if serpapi_section
+            else "https://serpapi.com/search.json"
+        ),
+        engine=(
+            getattr(serpapi_section, "ENGINE", "google_shopping")
+            if serpapi_section
+            else "google_shopping"
+        ),
+        gl=getattr(serpapi_section, "GL", "us") if serpapi_section else "us",
+        search_limit=(
+            int(getattr(serpapi_section, "LIMIT", 12)) if serpapi_section else 12
+        ),
+    )
+    sources.append(serpapi_source)
 
     retry = settings.SOURCES.RETRY
     cb = settings.SOURCES.CIRCUIT_BREAKER
